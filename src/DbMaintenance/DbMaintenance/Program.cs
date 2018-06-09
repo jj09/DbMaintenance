@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using MySql.Data.MySqlClient;
@@ -28,7 +29,7 @@ namespace DbMaintenance
         private int _port;
         private string _connectionString;
         private string _backupDir;
-        private string _mysqldumpPath;
+        //private string _mysqldumpPath;
 
         //Constructor
         public DbConnect()
@@ -40,18 +41,12 @@ namespace DbMaintenance
         private void Initialize()
         {
             _backupDir = @"D:\home\db-backup";
-            _server = "YOUR-DB-SERVER";
-            _database = "YOUR-DB-NAME";
-            _uid = "YOU-USERNAME";
-            _password = "PASSWORD";
-            _port = 3306;
-            _mysqldumpPath = @"D:\Program Files\MySQL\MySQL Server 5.1\bin\";
-            _connectionString = "Database=" + _database + ";" +
-                               "Data Source=" + _server + ";" +
-                               "Port=" + _port + ";" +
-                               "User Id=" + _uid + ";" +
-                               "Password=" + _password + ";" +
-                               "SslMode=Required;";
+            _server = ConfigurationManager.AppSettings["server"];
+            _database = ConfigurationManager.AppSettings["database"];
+            _uid = ConfigurationManager.AppSettings["user"];
+            _password = ConfigurationManager.AppSettings["password"];
+            _port = int.Parse(ConfigurationManager.AppSettings["port"]);
+            _connectionString = $"Database={_database};Data Source={_server};Port={_port};User Id={_uid};Password={_password};SslMode=Required;";
             _connection = new MySqlConnection(_connectionString);
         }
 
@@ -128,6 +123,8 @@ namespace DbMaintenance
             {
                 var now = DateTime.Now;
 
+                if (!Directory.Exists(_backupDir)) Directory.CreateDirectory(_backupDir);
+
                 //Save file with the current date as a filename
                 var path = _backupDir + "\\" + _database +
                     now.Year + "-" +
@@ -140,12 +137,16 @@ namespace DbMaintenance
 
                 var file = new StreamWriter(path);
 
+                string arguments = string.Format(@"-u{0} -p{1} -h{2} --port {3} {4}", _uid, _password, _server, _port, _database);
+
+                Console.WriteLine($"Command: mysqldump {arguments}");
+
                 var psi = new ProcessStartInfo
                 {
-                    FileName = _mysqldumpPath + "mysqldump",
+                    FileName = "mysqldump",
                     RedirectStandardInput = false,
                     RedirectStandardOutput = true,
-                    Arguments = string.Format(@"-u{0} -p{1} -h{2} {3}", _uid, _password, _server, _database),
+                    Arguments = arguments,
                     UseShellExecute = false
                 };
 
